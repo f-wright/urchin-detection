@@ -160,6 +160,4 @@ cython_debug/
 #.idea/
 
 # image files
-images_to_label/
-input_images/
-input_images copy/
+data/
