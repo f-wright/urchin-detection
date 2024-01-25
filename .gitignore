@@ -159,8 +159,18 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# image files
+# data and label files
 data/
+download/
+cats_and_dogs.yaml
 
-# virtual environment
-yolo-venv/
+# virtual environments
+venv/
+venv-3.11/
+
+# model repo
+yolov5/
+
+error_notes.md
+.DS_Store
+yolov5s.pt
