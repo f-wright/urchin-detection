@@ -22,31 +22,38 @@ def get_filenames(folder):
 
     return filenames
 
-# Dog and cat image filename sets
-dog_images = get_filenames('download/dog/images')
-cat_images = get_filenames('download/cat/images')
+def get_cats_and_dogs():
+    # Dog and cat image filename sets
+    dog_images = get_filenames('download/dog/images')
+    cat_images = get_filenames('download/cat/images')
 
-# Check for duplicates
-duplicates = dog_images & cat_images
+    # eliminate duplicates
+    duplicates = dog_images & cat_images
+    # used to check which images are duplicates and what they actually are, we know that the cats and dogs duplicates are cat images
+    # inspect_duplicates(duplicates)
+    dog_images -= duplicates
 
-print(duplicates)
+    dog_images = np.array(list(dog_images))
+    cat_images = np.array(list(cat_images))
 
-# Show the images from the duplicated filenames
-for file in duplicates:
-    for animal in ['cat', 'dog']:
-        Image.open(f'download/{animal}/images/{file}').show()
+    # Use the same random seed for reproducability
+    np.random.seed(42)
+    np.random.shuffle(dog_images)
+    np.random.shuffle(cat_images)
 
-dog_images -= duplicates
+    # Cat data
+    split_dataset('cat', cat_images, train_size=400, val_size=50)
 
-print(len(dog_images))
+    # Dog data (reduce the number by 1 for each set due to three duplicates)
+    split_dataset('dog', dog_images, train_size=399, val_size=49)
 
-dog_images = np.array(list(dog_images))
-cat_images = np.array(list(cat_images))
 
-# Use the same random seed for reproducability
-np.random.seed(42)
-np.random.shuffle(dog_images)
-np.random.shuffle(cat_images)
+def inspect_duplicates(duplicates):
+    # Show the images from the duplicated filenames
+    for file in duplicates:
+        for animal in ['cat', 'dog']:
+            Image.open(f'download/{animal}/images/{file}').show()
+
 
 def split_dataset(animal, image_names, train_size, val_size):
     for i, image_name in enumerate(image_names):
@@ -72,9 +79,3 @@ def split_dataset(animal, image_names, train_size, val_size):
         # Copy files
         shutil.copy(source_image_path, target_image_folder)
         shutil.copy(source_label_path, target_label_folder)
-
-# Cat data
-split_dataset('cat', cat_images, train_size=400, val_size=50)
-
-# Dog data (reduce the number by 1 for each set due to three duplicates)
-split_dataset('dog', dog_images, train_size=399, val_size=49)
