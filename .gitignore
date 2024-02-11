@@ -159,9 +159,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# data and label files
-data/
-download/
+# cats and dogs data and label files
+cats_dogs_data/
+cats_dogs_download/
 cats_and_dogs.yaml
 
 # virtual environments
@@ -174,3 +174,7 @@ yolov5/
 error_notes.md
 .DS_Store
 yolov5s.pt
+
+# urchin data and label files
+data/
+urchin_download/
