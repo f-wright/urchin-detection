@@ -12,7 +12,7 @@ def make_yolo_folders() -> None:
             for split in ['train', 'val', 'test']:
                 os.makedirs(f'data/{folder}/{split}')
 
-def get_urchin_image_folders(directory: str, labelers: [str], image_folders: [str]) -> [str]:
+def get_urchin_image_folders(directory: str, labelers: list[str], image_folders: list[str]) -> list[str]:
     """Returns all folders with valid images in them. 
 
     Args:
@@ -49,7 +49,7 @@ def get_folder_filenames(folder: str) -> set:
 
     return filenames
 
-def get_all_filenames(folders: [str]) -> set:
+def get_all_filenames(folders: list[str]) -> set:
     """Gets all valid image filenames for all folders
 
     Args:
