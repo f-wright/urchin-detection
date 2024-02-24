@@ -4,6 +4,8 @@ from PIL import Image
 import numpy as np
 import shutil
 
+import xml.etree.ElementTree as ET
+
 def make_yolo_folders() -> None:
     """ Generates folder structure for YOLOv5 images and labels for train, val, and test
     """
@@ -49,8 +51,130 @@ def get_urchin_label_folders(image_folders: list[str]) -> list[str]:
             label_path[-1] = label_path[-1] + "_images"
 
         label_path = os.path.join(*label_path)
+
+        # Check if we exported an annotations file
+        annotation_path = [label_path, "annotations.xml"]
+        annotation_path = os.path.join(*annotation_path)
+
+        # Convert polygons to bounding boxes
+        if os.path.isfile(annotation_path):
+            polygonToBox(label_path)
+
         label_folders.append(label_path)
     return label_folders
+
+def polygonToBox(label_path):
+    """Converts polygons from a CVAT 1.1 XML file into bounding boxes, in YOLO format. Requires 
+    annotations.xml to be placed in the normal YOLO directory structure (google_0, google_negative_1, etc.)
+
+    Args:
+        label_path (str): Path of the folder containing the labels
+    """
+
+    annotation_path = [label_path, "annotations.xml"]
+    annotation_path = os.path.join(*annotation_path)
+    
+    text_folder_path = [label_path, "obj_train_data"]
+    text_folder_path = os.path.join(*text_folder_path)
+
+    tree = ET.parse(annotation_path)
+    root = tree.getroot()
+    
+    # Go through each image
+    for image in root:
+        if image.tag == 'image':
+            image_name = image.get('name')
+            image_name = image_name[:-3]
+            image_name = image_name + 'txt'
+            text_file_path = [text_folder_path, image_name]
+            text_file_path = os.path.join(*text_file_path)
+            h = eval(image.get('height'))
+            w = eval(image.get('width'))
+
+            labelString = ""
+
+            # Check class label ordering, flip if incorrect
+            class_names_filepath = os.path.join(label_path, "obj.names")
+
+            with open(class_names_filepath, "r+") as class_fp:
+                input_classes = class_fp.readlines()
+            
+                if input_classes == ['Other Sea Urchin\n', 'Purple Sea Urchin\n']:
+                    proper_classes = ['Purple Sea Urchin\n', 'Other Sea Urchin\n']
+                    class_fp.writelines(proper_classes)
+
+            # Parse each polygon
+            for polygon in image:
+                xList = []
+                yList = []
+
+                # Gather data from xml file, split appropriately
+                # print(polygon.attrib)
+                # print()
+
+                # Mask
+                if 'left' in polygon.attrib:
+                    left = eval(polygon.get('left'))/w
+                    top = eval(polygon.get('top'))/h
+                    boxW = eval(polygon.get('width'))/w
+                    boxH = eval(polygon.get('height'))/h
+                    xMid = left + boxW/2.0
+                    yMid = top - boxH/2.0
+
+                    # Add current polygon label string to larger string
+                    if polygon.get('label') == 'Purple Sea Urchin':
+                        labelString = labelString + '0 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                    else:
+                        labelString = labelString + '1 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                
+
+                # Polygon
+                elif 'points' in polygon.attrib:
+
+                    pointString = polygon.get('points')
+                    pointList = pointString.split(';')
+                    for i in range(len(pointList)):
+                        pointList[i] = pointList[i].split(',')
+                    for x in pointList:
+                        xList.append(x[0])
+                        yList.append(x[1])
+                    
+                    # Convert data into float, range 0-1
+                    xList = [eval(x) for x in xList]
+                    yList = [eval(x) for x in yList]
+                    xList = [x/w for x in xList]
+                    yList = [x/h for x in yList]
+
+                    # Calculate all x, y, w, h of the bounding box
+                    xMin = min(xList)
+                    xMax = max(xList)
+                    yMin = min(yList)
+                    yMax = max(yList)
+
+                    xMid = (xMax + xMin)/2.0
+                    yMid = (yMax + yMin)/2.0
+                    boxW = xMax - xMin
+                    boxH = yMax - yMin
+
+                    # Add current polygon label string to larger string
+                    if polygon.get('label') == 'Purple Sea Urchin':
+                        labelString = labelString + '0 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                    else:
+                        labelString = labelString + '1 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                
+            # Add label string to file
+            with open(text_file_path, "a+") as text_file:
+                text_file.writelines(labelString)
+                
+            #print(labelString)
+
+    
+    # Rename file when done to prevent reuse
+    annotationUsed_path = [label_path, "annotationsUsed.xml"]
+    annotationUsed_path = os.path.join(*annotationUsed_path)
+    os.rename(annotation_path, annotationUsed_path)
+
+
 
 def get_filenames(folder: str, is_label = False) -> set:
     """Gets all valid image filenames in a given folder
@@ -203,7 +327,7 @@ def split_data(image_filenames: set, train_prop: float, val_prop: float) -> None
 def main():
     directory = "urchin_download/images"
     labelers = ["Brittany", "Castor", "Eliza", "Francine", "James", "Katie", "Ryan"]
-    image_subfolders = ["google_0", "sean_nov_3/images"]
+    image_subfolders = ["google_0", "sean_nov_3/images", "google_negative_1/images"]
 
     make_yolo_folders()
 
