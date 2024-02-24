@@ -6,6 +6,18 @@ import shutil
 
 import xml.etree.ElementTree as ET
 
+# change this to whatever you named your download folder with the input images and labels
+# NOTE: this must have "images" and "labels" subfolders
+IMAGE_DOWNLOAD_DIR = "urchin_download"
+
+# all people who have labeled images, the names of the corresponding download folders
+# NOTE: do not change unless someone new labels images
+LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Katie", "Ryan"]
+
+# all labeling rounds you want to use in training
+# NOTE: must be updated when new groups of labels are done
+IMAGE_SUBFOLDERS = ["google_0", "sean_nov_3/images", "google_negative_1/images"]
+
 def make_yolo_folders() -> None:
     """ Generates folder structure for YOLOv5 images and labels for train, val, and test
     """
@@ -328,13 +340,11 @@ def split_data(image_filenames: set, train_prop: float, val_prop: float) -> None
         shutil.copy(label_path, target_label_folder)
 
 def main():
-    directory = "urchin_download/images"
-    labelers = ["Brittany", "Castor", "Eliza", "Francine", "James", "Katie", "Ryan"]
-    image_subfolders = ["google_0", "sean_nov_3/images", "google_negative_1/images"]
+    image_dir = os.path.join(IMAGE_DOWNLOAD_DIR, "images")
 
     make_yolo_folders()
 
-    image_folders = get_urchin_image_folders(directory, labelers, image_subfolders)
+    image_folders = get_urchin_image_folders(image_dir, LABELERS, IMAGE_SUBFOLDERS)
     label_folders = get_urchin_label_folders(image_folders)
 
     standardize_labels(label_folders)

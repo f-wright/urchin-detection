@@ -178,5 +178,5 @@ yolov5s.pt
 # urchin data and label files
 data/
 urchin_download/
-
+urchin_download_old/
 source/
