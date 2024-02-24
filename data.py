@@ -52,25 +52,17 @@ def get_urchin_label_folders(image_folders: list[str]) -> list[str]:
 
         label_path = os.path.join(*label_path)
 
-        # Check if we exported an annotations file
-        annotation_path = [label_path, "annotations.xml"]
-        annotation_path = os.path.join(*annotation_path)
-
-        # Convert polygons to bounding boxes
-        if os.path.isfile(annotation_path):
-            polygonToBox(label_path)
-
         label_folders.append(label_path)
+
     return label_folders
 
-def polygonToBox(label_path):
+def polygon_to_box(label_path: str) -> None:
     """Converts polygons from a CVAT 1.1 XML file into bounding boxes, in YOLO format. Requires 
     annotations.xml to be placed in the normal YOLO directory structure (google_0, google_negative_1, etc.)
 
     Args:
         label_path (str): Path of the folder containing the labels
     """
-
     annotation_path = [label_path, "annotations.xml"]
     annotation_path = os.path.join(*annotation_path)
     
@@ -126,7 +118,6 @@ def polygonToBox(label_path):
                         labelString = labelString + '0 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
                     else:
                         labelString = labelString + '1 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
-                
 
                 # Polygon
                 elif 'points' in polygon.attrib:
@@ -167,14 +158,11 @@ def polygonToBox(label_path):
                 text_file.writelines(labelString)
                 
             #print(labelString)
-
     
     # Rename file when done to prevent reuse
     annotationUsed_path = [label_path, "annotationsUsed.xml"]
     annotationUsed_path = os.path.join(*annotationUsed_path)
     os.rename(annotation_path, annotationUsed_path)
-
-
 
 def get_filenames(folder: str, is_label = False) -> set:
     """Gets all valid image filenames in a given folder
@@ -214,6 +202,21 @@ def get_all_image_filenames(folders: list[str]) -> set:
         filenames.update(folder_filenames)
 
     return filenames
+
+def standardize_labels(label_folders: list[str]) -> None:
+    """Standardize all labels to be bounding boxes
+
+    Args:
+        label_folders (list[str]):  List of all label folders to standardize
+    """
+    for label_path in label_folders:
+        # Check if we exported an annotations file
+        annotation_path = [label_path, "annotations.xml"]
+        annotation_path = os.path.join(*annotation_path)
+
+        # Convert polygons to bounding boxes
+        if os.path.isfile(annotation_path):
+            polygon_to_box(label_path)
 
 def standardize_classes(label_folders: list[str]) -> None:
     """Change all .names files and label files in place to reflect the classes being ['Purple Sea Urchin\n', 'Other Sea Urchin\n']
@@ -334,6 +337,7 @@ def main():
     image_folders = get_urchin_image_folders(directory, labelers, image_subfolders)
     label_folders = get_urchin_label_folders(image_folders)
 
+    standardize_labels(label_folders)
     standardize_classes(label_folders)
     image_filenames = get_all_image_filenames(image_folders)
     split_data(image_filenames, 0.6, 0.2)
