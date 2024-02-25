@@ -56,9 +56,16 @@ def main(opt):
     files = os.listdir(hypDirectory)
     files.sort()
 
+    f = open(str(opt.project) + '/results.csv', 'w')
+    headerString = "Class" + ',' + "Images" + ',' + "Instances" + ',' + "P" + ',' + "R" + ',' + "mAP50" + ',' + "mAP50-95" + '\n'
+    f.writelines(headerString)
+    f.close()
+
     for file in files:
         if file[:3] == 'hyp':
             opt.hyp = Path(hypDirectory + '/' + file)
+            opt.name = file[:-5]
+            opt.save_dir = opt.project
             train.main(opt)
 
 if __name__ == '__main__':
