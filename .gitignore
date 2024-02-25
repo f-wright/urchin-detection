@@ -181,5 +181,4 @@ urchin_download/
 urchin_download_old/
 source/
 
-sweep.py
-testSweep.py
+hyps/
