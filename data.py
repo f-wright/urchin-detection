@@ -95,89 +95,73 @@ def polygon_to_box(label_path: str) -> None:
             h = eval(image.get('height'))
             w = eval(image.get('width'))
 
-            labelString = ""
-
-            # Check class label ordering, flip if incorrect
-            class_names_filepath = os.path.join(label_path, "obj.names")
-
-            with open(class_names_filepath, "r+") as class_fp:
-                input_classes = class_fp.readlines()
-            
-                if input_classes == ['Other Sea Urchin\n', 'Purple Sea Urchin\n']:
-                    proper_classes = ['Purple Sea Urchin\n', 'Other Sea Urchin\n']
-                    class_fp.writelines(proper_classes)
+            label_string = ""
 
             # Parse each polygon
             for polygon in image:
-                xList = []
-                yList = []
-
-                # Gather data from xml file, split appropriately
-                # print(polygon.attrib)
-                # print()
+                x_list = []
+                y_list = []
 
                 # Mask
                 if 'left' in polygon.attrib:
                     left = eval(polygon.get('left'))/w
                     top = eval(polygon.get('top'))/h
-                    boxW = eval(polygon.get('width'))/w
-                    boxH = eval(polygon.get('height'))/h
-                    xMid = left + boxW/2.0
-                    yMid = top - boxH/2.0
+                    box_w = eval(polygon.get('width'))/w
+                    box_h = eval(polygon.get('height'))/h
+                    x_mid = left + box_w/2.0
+                    y_mid = top - box_h/2.0
 
                     # Add current polygon label string to larger string
                     if polygon.get('label') == 'Purple Sea Urchin':
-                        labelString = labelString + '0 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                        label_string = label_string + '0 ' + str(x_mid) + ' ' + str(y_mid) + ' ' + str(box_w) + ' ' + str(box_h) + '\n'
                     else:
-                        labelString = labelString + '1 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                        label_string = label_string + '1 ' + str(x_mid) + ' ' + str(y_mid) + ' ' + str(box_w) + ' ' + str(box_h) + '\n'
 
                 # Polygon
                 elif 'points' in polygon.attrib:
 
-                    pointString = polygon.get('points')
-                    pointList = pointString.split(';')
-                    for i in range(len(pointList)):
-                        pointList[i] = pointList[i].split(',')
-                    for x in pointList:
-                        xList.append(x[0])
-                        yList.append(x[1])
+                    point_string = polygon.get('points')
+                    point_list = point_string.split(';')
+                    for i in range(len(point_list)):
+                        point_list[i] = point_list[i].split(',')
+                    for x in point_list:
+                        x_list.append(x[0])
+                        y_list.append(x[1])
                     
                     # Convert data into float, range 0-1
-                    xList = [eval(x) for x in xList]
-                    yList = [eval(x) for x in yList]
-                    xList = [x/w for x in xList]
-                    yList = [x/h for x in yList]
+                    x_list = [eval(x) for x in x_list]
+                    y_list = [eval(x) for x in y_list]
+                    x_list = [x/w for x in x_list]
+                    y_list = [x/h for x in y_list]
 
                     # Calculate all x, y, w, h of the bounding box
-                    xMin = min(xList)
-                    xMax = max(xList)
-                    yMin = min(yList)
-                    yMax = max(yList)
+                    xMin = min(x_list)
+                    xMax = max(x_list)
+                    yMin = min(y_list)
+                    yMax = max(y_list)
 
-                    xMid = (xMax + xMin)/2.0
-                    yMid = (yMax + yMin)/2.0
-                    boxW = xMax - xMin
-                    boxH = yMax - yMin
+                    x_mid = (xMax + xMin)/2.0
+                    y_mid = (yMax + yMin)/2.0
+                    box_w = xMax - xMin
+                    box_h = yMax - yMin
 
                     # Add current polygon label string to larger string
                     if polygon.get('label') == 'Purple Sea Urchin':
-                        labelString = labelString + '0 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                        label_string = label_string + '0 ' + str(x_mid) + ' ' + str(y_mid) + ' ' + str(box_w) + ' ' + str(box_h) + '\n'
                     else:
-                        labelString = labelString + '1 ' + str(xMid) + ' ' + str(yMid) + ' ' + str(boxW) + ' ' + str(boxH) + '\n'
+                        label_string = label_string + '1 ' + str(x_mid) + ' ' + str(y_mid) + ' ' + str(box_w) + ' ' + str(box_h) + '\n'
                 
             # Add label string to file
             with open(text_file_path, "a+") as text_file:
-                text_file.writelines(labelString)
-                
-            #print(labelString)
+                text_file.writelines(label_string)
     
     # Rename file when done to prevent reuse
-    annotationUsed_path = [label_path, "annotationsUsed.xml"]
-    annotationUsed_path = os.path.join(*annotationUsed_path)
-    os.rename(annotation_path, annotationUsed_path)
+    annotations_used_path = [label_path, "annotationsUsed.xml"]
+    annotations_used_path = os.path.join(*annotations_used_path)
+    os.rename(annotation_path, annotations_used_path)
 
 def get_filenames(folder: str, is_label = False) -> set:
-    """Gets all valid image filenames in a given folder
+    """Gets all valid filenames in a given folder
 
     Args:
         folder (str): folder to get filenames from
@@ -199,19 +183,26 @@ def get_filenames(folder: str, is_label = False) -> set:
     return filenames
 
 def get_all_image_filenames(folders: list[str]) -> set:
-    """Gets all valid image filenames for all folders
+    """Gets all valid image filenames with labels for all folders
 
     Args:
         folders (str]): all folders to get images from
 
     Returns:
-        set: all valid filename strings, relative paths from repo base directory
+        set: all valid filename strings with labels, relative paths from repo base directory
     """
     filenames = set()
 
     for folder in folders:
         folder_filenames = get_filenames(folder, is_label=False)
         filenames.update(folder_filenames)
+
+    # check to make sure the filenames have corresponding labels
+    unlabeled_filenames = set()
+    for file in filenames:
+        if not os.path.exists(get_label_filename(file)):
+            unlabeled_filenames.add(file)
+    filenames = filenames - unlabeled_filenames
 
     return filenames
 
@@ -239,33 +230,34 @@ def standardize_classes(label_folders: list[str]) -> None:
     for label_folder in label_folders:
         class_names_filepath = os.path.join(label_folder, "obj.names")
 
-        # reads in classes and strips off newline characters and trailing whitespace
-        with open(class_names_filepath, "r") as class_fp:
-            input_classes = class_fp.readlines()
+        if os.path.exists(class_names_filepath):
+            # reads in classes and strips off newline characters and trailing whitespace
+            with open(class_names_filepath, "r") as class_fp:
+                input_classes = class_fp.readlines()
 
-        # classes are two different options, make sure they're the correct options and the only variation is ordering
-        proper_classes = ['Purple Sea Urchin\n', 'Other Sea Urchin\n']
-        flipped_classes = ['Other Sea Urchin\n', 'Purple Sea Urchin\n']
-        assert input_classes in [proper_classes, flipped_classes], f"Class labels are not 'Purple Sea Urchin' and 'Other Sea Urchin' in {label_folder}"
-        
-        # classes in the wrong order
-        if input_classes == flipped_classes:
-            label_files = get_filenames(label_folder, is_label=True)
-
-            for file in label_files:
-                # read in file, then write over it, flipping class labels
-                with open(file, "r+") as label_fp:
-                    labels = label_fp.readlines()
-                    labels = [flip_class(label) for label in labels]
-
-                    # return to beginning of file
-                    label_fp.seek(0)
-
-                    label_fp.writelines(labels)
+            # classes are two different options, make sure they're the correct options and the only variation is ordering
+            proper_classes = ['Purple Sea Urchin\n', 'Other Sea Urchin\n']
+            flipped_classes = ['Other Sea Urchin\n', 'Purple Sea Urchin\n']
+            assert input_classes in [proper_classes, flipped_classes], f"Class labels are not 'Purple Sea Urchin' and 'Other Sea Urchin' in {label_folder}"
             
-            # fix .names file
-            with open(class_names_filepath, "r+") as class_fp:
-                class_fp.writelines(proper_classes)
+            # classes in the wrong order
+            if input_classes == flipped_classes:
+                label_files = get_filenames(label_folder, is_label=True)
+
+                for file in label_files:
+                    # read in file, then write over it, flipping class labels
+                    with open(file, "r+") as label_fp:
+                        labels = label_fp.readlines()
+                        labels = [flip_class(label) for label in labels]
+
+                        # return to beginning of file
+                        label_fp.seek(0)
+
+                        label_fp.writelines(labels)
+                
+                # fix .names file
+                with open(class_names_filepath, "r+") as class_fp:
+                    class_fp.writelines(proper_classes)
         
 def flip_class(label: str) -> str:
     """Flips the class label of an input label
@@ -281,6 +273,30 @@ def flip_class(label: str) -> str:
     else:
         label = "1" + label[1:]
     return label
+
+def get_label_filename(image_filename: str) -> str:
+    """Get label filename corresponding to an input image filename
+
+    Args:
+        image_filename (str): Path to an image
+
+    Returns:
+        str: Path to label file corresponding to the image
+    """
+    # get path split by folders into a list
+    label_path = image_filename.split(os.sep)
+
+    # get corresponding label path for image, relies on particular file structure
+    label_path[-1] = label_path[-1].replace('.jpg', '.txt')
+    label_path[1] = 'labels'
+    if label_path[-2] == 'images':
+        del label_path[-2]
+        label_path[-2] = label_path[-2] + "_images"
+    label_path.insert(-1, "obj_train_data")
+
+    label_path = os.path.join(*label_path)
+
+    return label_path
 
 def split_data(image_filenames: set, train_prop: float, val_prop: float) -> None:
     """Splits all images and labels across train, val and test folders
@@ -302,18 +318,7 @@ def split_data(image_filenames: set, train_prop: float, val_prop: float) -> None
     val_count = int(val_prop * total_image_count)
 
     for i, image_path in enumerate(urchin_images):
-        # get path split by folders into a list
-        label_path = image_path.split(os.sep)
-
-        # get corresponding label path for image, relies on particular file structure
-        label_path[-1] = label_path[-1].replace('.jpg', '.txt')
-        label_path[1] = 'labels'
-        if label_path[-2] == 'images':
-            del label_path[-2]
-            label_path[-2] = label_path[-2] + "_images"
-        label_path.insert(-1, "obj_train_data")
-
-        label_path = os.path.join(*label_path)
+        label_path = get_label_filename(image_path)
         
         # Split into train, val, or test
         if i < train_count:
@@ -347,8 +352,8 @@ def main():
     image_folders = get_urchin_image_folders(image_dir, LABELERS, IMAGE_SUBFOLDERS)
     label_folders = get_urchin_label_folders(image_folders)
 
-    standardize_labels(label_folders)
     standardize_classes(label_folders)
+    standardize_labels(label_folders)
     image_filenames = get_all_image_filenames(image_folders)
     split_data(image_filenames, 0.6, 0.2)
 
