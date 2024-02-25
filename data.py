@@ -109,7 +109,7 @@ def polygon_to_box(label_path: str) -> None:
                     box_w = eval(polygon.get('width'))/w
                     box_h = eval(polygon.get('height'))/h
                     x_mid = left + box_w/2.0
-                    y_mid = top - box_h/2.0
+                    y_mid = top + box_h/2.0
 
                     # Add current polygon label string to larger string
                     if polygon.get('label') == 'Purple Sea Urchin':
