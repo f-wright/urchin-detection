@@ -170,6 +170,7 @@ venv-3.11/
 
 # model repo
 yolov5/runs
+yolov5/
 
 error_notes.md
 .DS_Store
