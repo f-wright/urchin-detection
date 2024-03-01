@@ -421,7 +421,7 @@ def main():
     standardize_classes(label_folders)
     standardize_labels(label_folders)
     image_filenames = get_all_image_filenames(image_folders)
-    # print(len(image_filenames))   # for checking how many images are in our dataset
+    print(f"{len(image_filenames)} images in the dataset")
     split_data(image_filenames, 0.6, 0.2)
 
 
