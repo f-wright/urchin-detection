@@ -16,7 +16,12 @@ LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Katie", "Ryan"]
 
 # all labeling rounds you want to use in training
 # NOTE: must be updated when new groups of labels are done
-IMAGE_SUBFOLDERS = ["google_0", "sean_nov_3/images", "google_negative_1/images"]
+IMAGE_SUBFOLDERS = [
+    "google_0",
+    "sean_nov_3/images",
+    "google_negative_1/images",
+    "background_lsui_0/images",
+]
 
 
 def make_yolo_folders() -> None:
