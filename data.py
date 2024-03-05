@@ -23,6 +23,8 @@ IMAGE_SUBFOLDERS = [
     "background_lsui_0/images",
 ]
 
+VIDEO_SUBFOLDERS = ["sean_nov_3/videos"]
+
 
 def make_yolo_folders() -> None:
     """Generates folder structure for YOLOv5 images and labels for train, val, and test"""
@@ -49,6 +51,28 @@ def get_urchin_image_folders(
     for labeler in labelers:
         for image_folder in image_subfolders:
             path = os.path.join(directory, labeler, image_folder)
+            if os.path.exists(path):
+                paths += [path]
+    return paths
+
+
+def get_urchin_video_folders(
+    directory: str, labelers: list[str], video_subfolders: list[str]
+) -> list[str]:
+    """Returns all folders with valid videos in them.
+
+    Args:
+        directory (str): base directory containing all videos, relative path from repo base
+        labelers (list[str]): list of all labelers
+        video_subfolders (list[str]): list of all valid labeler subfolders which contain videos directly
+
+    Returns:
+        list[str]: list of paths which exist and contain videos, relative paths from repo base
+    """
+    paths = []
+    for labeler in labelers:
+        for video_folder in video_subfolders:
+            path = os.path.join(directory, labeler, video_folder)
             if os.path.exists(path):
                 paths += [path]
     return paths
@@ -256,7 +280,7 @@ def get_all_image_filenames(folders: list[str]) -> set:
     # check to make sure the filenames have corresponding labels
     unlabeled_filenames = set()
     for file in filenames:
-        if not os.path.exists(get_label_filename(file)):
+        if not os.path.exists(get_image_label_filename(file)):
             unlabeled_filenames.add(file)
     filenames = filenames - unlabeled_filenames
 
@@ -337,7 +361,7 @@ def flip_class(label: str) -> str:
     return label
 
 
-def get_label_filename(image_filename: str) -> str:
+def get_image_label_filename(image_filename: str) -> str:
     """Get label filename corresponding to an input image filename
 
     Args:
@@ -355,6 +379,33 @@ def get_label_filename(image_filename: str) -> str:
     if label_path[-2] == "images":
         del label_path[-2]
         label_path[-2] = label_path[-2] + "_images"
+    label_path.insert(-1, "obj_train_data")
+
+    label_path = os.path.join(*label_path)
+
+    return label_path
+
+
+# TODO: finish converting for vid
+def get_video_label_filename(video_filename: str, frame_num: int) -> str:
+    """Get label filename corresponding to an input video filename
+
+    Args:
+        video_filename (str): Path to an video
+
+    Returns:
+        str: Path to label file corresponding to the video
+    """
+    # get path split by folders into a list
+    label_path = video_filename.split(os.sep)
+
+    # get corresponding label path for video, relies on particular file structure
+    label_path[-1] = label_path[-1].replace(".MOV", ".txt")
+
+    label_path[1] = "labels"
+    if label_path[-2] == "videos":
+        del label_path[-2]
+        label_path[-2] = label_path[-2] + "_videos"
     label_path.insert(-1, "obj_train_data")
 
     label_path = os.path.join(*label_path)
@@ -382,7 +433,7 @@ def split_data(image_filenames: set, train_prop: float, val_prop: float) -> None
     val_count = int(val_prop * total_image_count)
 
     for i, image_path in enumerate(urchin_images):
-        label_path = get_label_filename(image_path)
+        label_path = get_image_label_filename(image_path)
 
         # Split into train, val, or test
         if i < train_count:
@@ -421,6 +472,7 @@ def main():
     make_yolo_folders()
 
     image_folders = get_urchin_image_folders(image_dir, LABELERS, IMAGE_SUBFOLDERS)
+    video_folders = get_urchin_video_folders(image_dir, LABELERS, VIDEO_SUBFOLDERS)
     label_folders = get_urchin_label_folders(image_folders)
 
     standardize_classes(label_folders)
