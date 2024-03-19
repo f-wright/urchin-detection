@@ -168,13 +168,18 @@ cats_and_dogs.yaml
 venv/
 venv-3.11/
 
-# model repo
+# yolo v5 model stuff
 yolov5/runs
 yolov5/
+yolov5s.pt
+
+# yolo v8 model stuff
+ultralytics/
+runs/
+yolov8n.pt
 
 error_notes.md
 .DS_Store
-yolov5s.pt
 
 # urchin data and label files
 data/
