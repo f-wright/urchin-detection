@@ -1,11 +1,14 @@
 import os
 import glob
-from PIL import Image
 import numpy as np
 import shutil
 import cv2
 
 import xml.etree.ElementTree as ET
+
+from pathlib import Path
+from PIL import Image
+
 
 # change this to whatever you named your download folder with the input images and labels
 # NOTE: this must have "images" and "labels" subfolders. The images subfolder may also contain videos
@@ -29,10 +32,13 @@ VIDEO_SUBFOLDERS = ["sean_nov_3/videos"]
 
 def make_yolo_folders() -> None:
     """Generates folder structure for YOLOv5 images and labels for train, val, and test"""
-    if not os.path.exists("data"):
-        for folder in ["images", "labels"]:
-            for split in ["train", "val", "test"]:
-                os.makedirs(f"data/{folder}/{split}")
+    data_path = Path("data")
+    if os.path.exists(data_path) and os.path.isdir(data_path):
+        shutil.rmtree(data_path)
+
+    for folder in ["images", "labels"]:
+        for split in ["train", "val", "test"]:
+            os.makedirs(f"data/{folder}/{split}")
 
 
 def get_urchin_image_folders(

@@ -17,7 +17,7 @@ Purple sea urchin detection for Apsis clinic project
 ## Steps for running the model
 
 1. First, activate your virtual environment using the command `source venv/bin/activate`, replacing `venv` with the name of your virtual environment
-2. Run `data.py`. This will take your input images and labels and organize them into the proper folders for YOLO training and evaluation. If you've run `data.py` before, make sure to delete the data folder before running to maintain proper train/val/test split.
+2. Run `data.py`. This will take your input images and labels and organize them into the proper folders for YOLO training and evaluation. If you've run `data.py` before, your previous data folder will be deleted and replaced with a the new one.
 3. To run the YOLOv5 model: `python3 yolov5/train.py --data urchins.yaml --weights yolov5s.pt --epochs 50 --batch 4 --freeze 10`
 4. To run the YOLOv8 model: `yolo detect train data='[INSERT ABSOLUTE PATH TO YOUR 'urchins.yaml' FILE HERE]' model=yolov8n.pt epochs=50 batch=4 freeze=10`
 
