@@ -576,7 +576,12 @@ def pull_frames_from_video(
 
 
 def split_data(
-    image_filenames: set, video_filenames: set, train_prop: float, val_prop: float
+    image_filenames: set,
+    video_filenames: set,
+    train_prop: float,
+    val_prop: float,
+    use_video: bool = True,
+    video_total_frames: int = 10,
 ) -> None:
     """Splits all images, videos and labels across train, val and test folders
 
@@ -585,22 +590,20 @@ def split_data(
         video_filenames (set): set of all video filenames as strings
         train_prop (float): proportion of total data we want to use for training
         val_prop (float): proportion of total data we want to use for validation
+        use_video (bool, optional): Whether or not to use video data. Defaults to True.
+        video_total_frames (int, optional): Total number of frames to pull from each
+            video. Will not be used if use_video=False. Defaults to 10.
     """
     urchin_images = np.array(list(image_filenames))
-    urchin_videos = np.array(list(video_filenames))
 
     # shuffle data
     np.random.seed(42)  # for reproducability
     np.random.shuffle(urchin_images)
-    np.random.shuffle(urchin_videos)
 
     total_image_count = urchin_images.shape[0]
-    total_video_count = urchin_videos.shape[0]
 
     train_image_count = int(train_prop * total_image_count)
     val_image_count = int(val_prop * total_image_count)
-    train_video_count = int(train_prop * total_video_count)
-    val_video_count = int(val_prop * total_video_count)
 
     # distribute images
     for i, image_path in enumerate(urchin_images):
@@ -636,59 +639,70 @@ def split_data(
         shutil.copy(image_path, target_image_folder)
         shutil.copy(label_path, target_label_folder)
 
-    # distribute videos
-    for i, video_path in enumerate(urchin_videos):
-        assert os.path.exists(video_path), f"Video path {video_path} does not exist"
+    if use_video:
+        urchin_videos = np.array(list(video_filenames))
+        np.random.shuffle(urchin_videos)
 
-        # take 10 total frames from each input video
-        frames_list = pull_frames_from_video(video_path, 10, use_total=True)
-        labels_list = [get_video_label_filename(frame) for frame in frames_list]
+        total_video_count = urchin_videos.shape[0]
 
-        # Split into train, val, or test
-        if i < train_video_count:
-            split = "train"
-        elif i < train_video_count + val_video_count:
-            split = "val"
-        else:
-            split = "test"
+        train_video_count = int(train_prop * total_video_count)
+        val_video_count = int(val_prop * total_video_count)
 
-        # make sure all of our frame paths exist
-        assert all(
-            [os.path.exists(frame) for frame in frames_list]
-        ), f"Frame path in {frames_list} does not exist"
+        # distribute videos
+        for i, video_path in enumerate(urchin_videos):
+            assert os.path.exists(video_path), f"Video path {video_path} does not exist"
 
-        # Destination paths
-        destination_filenames = [frame.split(os.sep) for frame in frames_list]
+            # take 10 total frames from each input video
+            frames_list = pull_frames_from_video(
+                video_path, video_total_frames, use_total=True
+            )
+            labels_list = [get_video_label_filename(frame) for frame in frames_list]
 
-        destination_image_filenames = [
-            destination_filename[2]
-            + "_"
-            + destination_filename[3]
-            + "_"
-            + destination_filename[4]
-            + "_"
-            + destination_filename[-1]
-            for destination_filename in destination_filenames
-        ]
+            # Split into train, val, or test
+            if i < train_video_count:
+                split = "train"
+            elif i < train_video_count + val_video_count:
+                split = "val"
+            else:
+                split = "test"
 
-        destination_label_filenames = [
-            destination_image_filename.replace(".jpg", ".txt")
-            for destination_image_filename in destination_image_filenames
-        ]
+            # make sure all of our frame paths exist
+            assert all(
+                [os.path.exists(frame) for frame in frames_list]
+            ), f"Frame path in {frames_list} does not exist"
 
-        target_image_folders = [
-            f"data/images/{split}/{destination_image_filename}"
-            for destination_image_filename in destination_label_filenames
-        ]
-        target_label_folders = [
-            f"data/labels/{split}/{destination_label_filename}"
-            for destination_label_filename in destination_label_filenames
-        ]
+            # Destination paths
+            destination_filenames = [frame.split(os.sep) for frame in frames_list]
 
-        # Copy files
-        for i in range(len(target_image_folders)):
-            shutil.copy(frames_list[i], target_image_folders[i])
-            shutil.copy(labels_list[i], target_label_folders[i])
+            destination_image_filenames = [
+                destination_filename[2]
+                + "_"
+                + destination_filename[3]
+                + "_"
+                + destination_filename[4]
+                + "_"
+                + destination_filename[-1]
+                for destination_filename in destination_filenames
+            ]
+
+            destination_label_filenames = [
+                destination_image_filename.replace(".jpg", ".txt")
+                for destination_image_filename in destination_image_filenames
+            ]
+
+            target_image_folders = [
+                f"data/images/{split}/{destination_image_filename}"
+                for destination_image_filename in destination_label_filenames
+            ]
+            target_label_folders = [
+                f"data/labels/{split}/{destination_label_filename}"
+                for destination_label_filename in destination_label_filenames
+            ]
+
+            # Copy files
+            for i in range(len(target_image_folders)):
+                shutil.copy(frames_list[i], target_image_folders[i])
+                shutil.copy(labels_list[i], target_label_folders[i])
 
 
 def main():
@@ -711,7 +725,14 @@ def main():
     print(
         f"{len(image_filenames)} images and {len(video_filenames)} videos in the dataset"
     )
-    split_data(image_filenames, video_filenames, 0.6, 0.2)
+    split_data(
+        image_filenames,
+        video_filenames,
+        train_prop=0.6,
+        val_prop=0.2,
+        use_video=True,
+        video_total_frames=10,
+    )
 
 
 if __name__ == "__main__":
