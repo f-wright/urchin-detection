@@ -3,6 +3,7 @@ import glob
 import numpy as np
 import shutil
 import cv2
+import argparse
 
 import xml.etree.ElementTree as ET
 
@@ -581,7 +582,8 @@ def split_data(
     train_prop: float,
     val_prop: float,
     use_video: bool = True,
-    video_total_frames: int = 10,
+    use_total: bool = True,
+    frame_num: int = 10,
 ) -> None:
     """Splits all images, videos and labels across train, val and test folders
 
@@ -649,12 +651,12 @@ def split_data(
         val_video_count = int(val_prop * total_video_count)
 
         # distribute videos
+        total_video_frames = 0
         for i, video_path in enumerate(urchin_videos):
             assert os.path.exists(video_path), f"Video path {video_path} does not exist"
 
-            # take 10 total frames from each input video
             frames_list = pull_frames_from_video(
-                video_path, video_total_frames, use_total=True
+                video_path, frame_num, use_total=use_total
             )
             labels_list = [get_video_label_filename(frame) for frame in frames_list]
 
@@ -700,40 +702,66 @@ def split_data(
             ]
 
             # Copy files
+            total_video_frames += len(frames_list)
             for i in range(len(target_image_folders)):
                 shutil.copy(frames_list[i], target_image_folders[i])
                 shutil.copy(labels_list[i], target_label_folders[i])
+        print(f"{total_video_frames} video frames in dataset")
 
 
-def main():
+def main(args):
     image_dir = os.path.join(IMAGE_DOWNLOAD_DIR, "images")
 
     make_yolo_folders()
 
     image_folders = get_urchin_image_folders(image_dir, LABELERS, IMAGE_SUBFOLDERS)
-    video_folders = get_urchin_video_folders(image_dir, LABELERS, VIDEO_SUBFOLDERS)
-
     image_filenames = get_all_image_filenames(image_folders)
-    video_filenames = get_all_video_filenames(video_folders)
-
     image_label_folders = get_urchin_label_folders(image_folders)
+
     standardize_classes(image_label_folders)
     standardize_labels(image_label_folders)
-    video_label_folders = get_video_label_folders(video_filenames)
-    standardize_classes(video_label_folders)
 
-    print(
-        f"{len(image_filenames)} images and {len(video_filenames)} videos in the dataset"
-    )
+    print(f"{len(image_filenames)} images in the dataset")
+
+    if args.use_video:
+        video_folders = get_urchin_video_folders(image_dir, LABELERS, VIDEO_SUBFOLDERS)
+        video_filenames = get_all_video_filenames(video_folders)
+        video_label_folders = get_video_label_folders(video_filenames)
+
+        standardize_classes(video_label_folders)
+    else:
+        video_filenames = []
+
     split_data(
         image_filenames,
         video_filenames,
         train_prop=0.6,
         val_prop=0.2,
-        use_video=True,
-        video_total_frames=10,
+        use_video=args.use_video,
+        use_total=args.use_total,
+        frame_num=args.frame_num,
     )
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-v",
+        "--use_video",
+        help="whether to include video data in the split",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-t",
+        "--use_total",
+        help="whether to use a total number of frames per video, or pull frames skipping some number",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--frame_num",
+        help="total number of frames to pull from each video, or number of frames to skip between pulls from a video",
+        type=int,
+    )
+    args = parser.parse_args()
+
+    main(args)
