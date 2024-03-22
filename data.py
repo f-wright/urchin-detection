@@ -4,10 +4,12 @@ import numpy as np
 import shutil
 import cv2
 import argparse
+import random
 
 import xml.etree.ElementTree as ET
 
 from pathlib import Path
+from typing import Optional
 from PIL import Image
 
 
@@ -21,12 +23,8 @@ LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Katie", "Ryan"]
 
 # all labeling rounds you want to use in training
 # NOTE: must be updated when new groups of labels are done
-IMAGE_SUBFOLDERS = [
-    "google_0",
-    "sean_nov_3/images",
-    "google_negative_1/images",
-    "background_lsui_0/images",
-]
+URCHIN_IMAGE_SUBFOLDERS = ["google_0", "sean_nov_3/images", "google_negative_1/images"]
+BACKGROUND_IMAGE_SUBFOLDERS = ["background_lsui_0/images"]
 
 VIDEO_SUBFOLDERS = ["sean_nov_3/videos"]
 
@@ -576,6 +574,81 @@ def pull_frames_from_video(
     return frames_list
 
 
+def sample_background(
+    background_images: set,
+    urchin_image_total: int,
+    proportion: Optional[float] = None,
+) -> set:
+    """Sample background images to a certain proportion
+
+    Args:
+        background_images (set): Set of all available background image filenames
+        urchin_image_total (int): Total number of non background images
+        proportion (Optional[float], optional): Proportion of how much of the final
+            dataset should be background images. If None, include all background images.
+            Defaults to None.
+
+    Returns:
+        Set: Sampled set of background image filenames to distribute
+    """
+    if proportion is None:
+        print(
+            f"Proportion background is {len(background_images) / (urchin_image_total + len(background_images))}"
+        )
+        return background_images
+    else:
+        # proportion = result_bkg / (urchin_img + result_bkg)
+        # proportion * (urchin_img + result_bkg) = result_bkg
+        # proportion * urchin_img + proportion * result_bkg = result_bkg
+        # proportion * urchin_img = result_bkg - proportion * result_bkg
+        # proportion * urchin_img / (1- proportion) = result_bkg
+        assert (
+            proportion < 1
+        ), "Proportion should always be less than 1 since we never only want to run on background images, and can't have more than 100 percent of our data be background."
+        result_bkg_total = int(proportion * urchin_image_total / (1 - proportion))
+
+        assert result_bkg_total <= len(
+            background_images
+        ), f"You need more background images to have them make up {proportion} of the total. Please lower your proportion or provide more background images."
+
+        # shuffle files list
+        random.seed(42)
+        background_images_list = list(background_images)
+        random.shuffle(background_images_list)
+
+        # define output
+        subset_filenames = background_images_list[:result_bkg_total]
+
+        return set(subset_filenames)
+
+
+def get_total_video_frames(
+    video_filenames: list[str],
+    frame_num: int,
+    use_total: int,
+) -> int:
+    """Get total number video frames
+
+    Args:
+        video_filenames (list[str]): List of all video filenames
+        frame_num (int): Either total number of frames pulled from each video, or
+            number of frames to skip between pulls when pulling frames from videos
+        use_total (int): Whether frame num is the total number of frames to pull or the
+            number of frames to skip between pulls
+
+    Returns:
+        int: Total number of urchin images, including video frames
+    """
+    if use_total:
+        return len(video_filenames) * frame_num
+    else:
+        frames_in_vids = [
+            get_num_frames_in_video(video_filename) // frame_num
+            for video_filename in video_filenames
+        ]
+        return sum(frames_in_vids)
+
+
 def split_data(
     image_filenames: set,
     video_filenames: set,
@@ -651,7 +724,6 @@ def split_data(
         val_video_count = int(val_prop * total_video_count)
 
         # distribute videos
-        total_video_frames = 0
         for i, video_path in enumerate(urchin_videos):
             assert os.path.exists(video_path), f"Video path {video_path} does not exist"
 
@@ -702,11 +774,9 @@ def split_data(
             ]
 
             # Copy files
-            total_video_frames += len(frames_list)
             for i in range(len(target_image_folders)):
                 shutil.copy(frames_list[i], target_image_folders[i])
                 shutil.copy(labels_list[i], target_label_folders[i])
-        print(f"{total_video_frames} video frames in dataset")
 
 
 def main(args):
@@ -714,14 +784,14 @@ def main(args):
 
     make_yolo_folders()
 
-    image_folders = get_urchin_image_folders(image_dir, LABELERS, IMAGE_SUBFOLDERS)
-    image_filenames = get_all_image_filenames(image_folders)
-    image_label_folders = get_urchin_label_folders(image_folders)
+    urchin_image_folders = get_urchin_image_folders(
+        image_dir, LABELERS, URCHIN_IMAGE_SUBFOLDERS
+    )
+    background_image_folders = get_urchin_image_folders(
+        image_dir, LABELERS, BACKGROUND_IMAGE_SUBFOLDERS
+    )
 
-    standardize_classes(image_label_folders)
-    standardize_labels(image_label_folders)
-
-    print(f"{len(image_filenames)} images in the dataset")
+    urchin_image_filenames = get_all_image_filenames(urchin_image_folders)
 
     if args.use_video:
         video_folders = get_urchin_video_folders(image_dir, LABELERS, VIDEO_SUBFOLDERS)
@@ -729,8 +799,29 @@ def main(args):
         video_label_folders = get_video_label_folders(video_filenames)
 
         standardize_classes(video_label_folders)
+        video_frame_total = get_total_video_frames(
+            video_filenames, args.frame_num, args.use_total
+        )
     else:
-        video_filenames = []
+        video_filenames = set()
+        video_frame_total = 0
+
+    background_image_filenames = get_all_image_filenames(background_image_folders)
+    background_image_filenames = sample_background(
+        background_image_filenames,
+        video_frame_total + len(urchin_image_filenames),
+        args.background_prop,
+    )
+
+    image_filenames = urchin_image_filenames | background_image_filenames  # set union
+    image_label_folders = get_urchin_label_folders(urchin_image_folders)
+
+    standardize_classes(image_label_folders)
+    standardize_labels(image_label_folders)
+
+    print(f"{len(urchin_image_filenames)} urchin images in the dataset")
+    print(f"{video_frame_total} video frames in the dataset")
+    print(f"{len(background_image_filenames)} background images in the dataset")
 
     split_data(
         image_filenames,
@@ -759,8 +850,15 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--frame_num",
+        nargs="?",
+        default=10,
         help="total number of frames to pull from each video, or number of frames to skip between pulls from a video",
         type=int,
+    )
+    parser.add_argument(
+        "--background_prop",
+        help="proportion of data that should be made up of background images",
+        type=float,
     )
     args = parser.parse_args()
 
