@@ -563,6 +563,7 @@ def pull_frames_from_video(
             )
             frames_list.append(filename)
             worked = cv2.imwrite(filename, frame)
+            # TODO: this assert gets thrown sometimes, need to fix
             assert worked
 
             count += num
