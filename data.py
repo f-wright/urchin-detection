@@ -549,8 +549,12 @@ def pull_frames_from_video(
     count = 0
 
     frame_folder = os.path.join(label_folder, "frames")
-    if not os.path.exists(frame_folder):
-        os.makedirs(frame_folder)
+
+    # remove frame folder and delete pulled frames if they exist
+    if os.path.exists(frame_folder) and os.path.isdir(frame_folder):
+        shutil.rmtree(frame_folder)
+
+    os.makedirs(frame_folder)
 
     frames_list = []
 
@@ -563,8 +567,7 @@ def pull_frames_from_video(
             )
             frames_list.append(filename)
             worked = cv2.imwrite(filename, frame)
-            # TODO: this assert gets thrown sometimes, need to fix
-            assert worked
+            assert worked, f"Couldn't save to {filename}"
 
             count += num
             cap.set(cv2.CAP_PROP_POS_FRAMES, count)
