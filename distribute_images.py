@@ -3,10 +3,11 @@ import os
 from PIL import Image
 from pathlib import Path
 
-LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Ryan"]
+# LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Ryan"]
+LABELERS = ["Francine"]
 INPUT_DIR = "input_images"
 OUTPUT_DIR = "images_to_label"
-FILE_CATEGORY = "background_lsui_0"
+FILE_CATEGORY = "background_lsui_1"
 CURRENT_DIR = os.getcwd()
 VIDEO_EXTENSIONS = {".mov", ".MOV"}
 IMAGE_EXTENSIONS = {".JPG", ".jpg", ".png", ".avif", ".webp", ".gif", ".jpeg"}
