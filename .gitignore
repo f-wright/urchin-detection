@@ -188,3 +188,10 @@ urchin_download_old/
 source/
 
 hyps/
+
+# image distribution folders
+images_to_label/
+input_images/
+background_LSUI_input/
+
+to_label_future/
