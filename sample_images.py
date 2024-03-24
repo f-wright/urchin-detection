@@ -1,6 +1,7 @@
 import shutil
 import os
 import random
+import argparse
 
 CURRENT_DIR = os.getcwd()
 OUTPUT_DIR = "input_images"
@@ -22,7 +23,6 @@ def sample_files(num_to_sample: int) -> None:
     ), "You are trying to sample more files than are present in your input directory, try lowering your sample quantity or changing your input directory."
 
     # shuffle files list
-    random.seed(42)
     random.shuffle(files_list)
 
     # define outputs
@@ -38,4 +38,12 @@ def sample_files(num_to_sample: int) -> None:
 
 
 if __name__ == "__main__":
-    sample_files(100)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "num_files",
+        help="total number of files to sample",
+        type=int,
+    )
+    args = parser.parse_args()
+
+    sample_files(args.num_files)
