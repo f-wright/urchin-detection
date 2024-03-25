@@ -10,7 +10,6 @@ import xml.etree.ElementTree as ET
 
 from pathlib import Path
 from typing import Optional
-from PIL import Image
 
 
 # change this to whatever you named your download folder with the input images and labels
@@ -24,7 +23,7 @@ LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Katie", "Ryan"]
 # all labeling rounds you want to use in training
 # NOTE: must be updated when new groups of labels are done
 URCHIN_IMAGE_SUBFOLDERS = ["google_0", "sean_nov_3/images", "google_negative_1/images"]
-BACKGROUND_IMAGE_SUBFOLDERS = ["background_lsui_0/images"]
+BACKGROUND_IMAGE_SUBFOLDERS = ["background_lsui_0/images", "background_lsui_1/images"]
 
 VIDEO_SUBFOLDERS = ["sean_nov_3/videos"]
 
