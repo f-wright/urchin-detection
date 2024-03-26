@@ -23,7 +23,9 @@ Purple sea urchin detection for Apsis clinic project
 
 ## Steps for running model inference
 
-1. To get predictions for a particular image or video, run `yolo predict model='[PATH TO TRAINED MODEL .pt FILE]' source='[PATH TO IMAGE OR VIDEO TO RUN INFERENCE ON]`
+1. To get predictions for a particular image or video, run `yolo predict model='[PATH TO TRAINED MODEL .pt FILE]' source='[PATH TO IMAGE OR VIDEO TO RUN INFERENCE ON]`. Can use `show` parameter to see inference being done in real time.
+2. To run object tracking on a particular video, run `yolo track model='[PATH TO TRAINED MODEL .pt FILE]' source='[PATH TO VIDEO TO RUN TRACKING ON]`. Can also set `conf=[SOME FLOAT], iou=[SOME FLOAT]` and the `show` parameter allows you to see the video inference being done in real time.
 
 ## References
-Originally based on tutorial: https://kikaben.com/yolov5-transfer-learning-dogs-cats/#yolov5-transfer-learning-execution
+YOLOv5 transfer learning based on tutorial: https://kikaben.com/yolov5-transfer-learning-dogs-cats/#yolov5-transfer-learning-execution
+Object tracking from: https://docs.ultralytics.com/modes/track/
