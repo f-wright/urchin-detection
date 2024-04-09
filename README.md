@@ -10,6 +10,7 @@ Purple sea urchin detection for Apsis clinic project
    `source venv/bin/activate`
 3. Download all images and labels from google drive. Put in a download folder with `images` and `labels` subfolders
 4. Clone the YOLOv8 repo using `git clone https://github.com/ultralytics/ultralytics.git`
+5. Install requirements for yOLOv8 `pip install ultralytics`
 
 
 ### Steps for training the YOLOv8 model
