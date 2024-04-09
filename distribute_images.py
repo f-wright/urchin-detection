@@ -1,19 +1,76 @@
 import shutil
 import os
+import argparse
+import cv2
+
 from PIL import Image
 from pathlib import Path
 
-# LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Ryan"]
-LABELERS = ["Francine"]
+LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Ryan"]
 INPUT_DIR = "input_images"
 OUTPUT_DIR = "images_to_label"
-FILE_CATEGORY = "background_lsui_1"
+FILE_CATEGORY = "redistributed_0"
 CURRENT_DIR = os.getcwd()
 VIDEO_EXTENSIONS = {".mov", ".MOV"}
 IMAGE_EXTENSIONS = {".JPG", ".jpg", ".png", ".avif", ".webp", ".gif", ".jpeg"}
 
 
-def distribute_videos_and_images():
+def save_frames_from_video(
+    video_path: str, output_dir: str, num: int, use_total: bool = False
+) -> None:
+    """Select frames from video and save them in a frames folder for labeling
+
+    Args:
+        video_path (str): path to video to pull frames from
+        output_dir (str): path to save frames to
+        num (int): if use_total, pull every num frames
+                    else pull num total frames
+        use_total (bool, optional): whether num is the total number of frames or the
+                    number to index by. Defaults to False.
+    """
+    cap = cv2.VideoCapture(video_path)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if use_total:
+        # make sure there are enough frames in the video to get this total number
+        assert num <= total_frames
+
+        # convert num from a total to number of frames between frames to get
+        num = total_frames // num
+
+    cap = cv2.VideoCapture(video_path)
+    count = 0
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+
+        if ret:
+            if not os.path.exists(
+                os.path.join(output_dir, video_path.split("/")[-1][:-4])
+            ):
+                os.mkdir(os.path.join(output_dir, video_path.split("/")[-1][:-4]))
+            filename = os.path.join(
+                output_dir, video_path.split("/")[-1][:-4], str(count) + ".jpg"
+            )
+            worked = cv2.imwrite(filename, frame)
+            assert worked, f"Couldn't save to {filename}"
+
+            count += num
+            cap.set(cv2.CAP_PROP_POS_FRAMES, count)
+        else:
+            cap.release()
+            break
+
+    os.remove(video_path)
+
+
+def distribute_videos_and_images(distribute_frames: bool):
+    """Distribute images and videos into labeler folders for labeling
+
+    Args:
+        distribute_frames (bool): Whether to distribute frames from videos instead of
+            whole videos
+    """
     # define inputs
     input_path = os.path.join(CURRENT_DIR, INPUT_DIR)
     files_list = os.listdir(input_path)
@@ -25,6 +82,7 @@ def distribute_videos_and_images():
     ]
     image_output_dirs = [os.path.join(labeler, "images") for labeler in output_dirs]
     video_output_dirs = [os.path.join(labeler, "videos") for labeler in output_dirs]
+    frame_output_dirs = [os.path.join(labeler, "frames") for labeler in output_dirs]
     num_groups = len(LABELERS)
 
     # make directories if they don't already exist
@@ -32,8 +90,10 @@ def distribute_videos_and_images():
         Path(image_dir).mkdir(parents=True, exist_ok=True)
     for video_dir in video_output_dirs:
         Path(video_dir).mkdir(parents=True, exist_ok=True)
+    for frame_dir in frame_output_dirs:
+        Path(frame_dir).mkdir(parents=True, exist_ok=True)
 
-    # split images and videos
+    # split image and video files
     images_list = [
         file
         for file in files_list
@@ -80,10 +140,23 @@ def distribute_videos_and_images():
         new_path = os.path.join(input_path, filename)
 
         # Move video to labeler folder
-        shutil.move(
-            new_path, os.path.join(video_output_dirs[path_i % num_groups], filename)
-        )
+        if distribute_frames:
+            save_frames_from_video(
+                new_path, frame_output_dirs[path_i % num_groups], 20, use_total=True
+            )
+        else:
+            shutil.move(
+                new_path, os.path.join(video_output_dirs[path_i % num_groups], filename)
+            )
 
 
 if __name__ == "__main__":
-    distribute_videos_and_images()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-f",
+        "--distribute_frames",
+        help="whether to distribute frames from a video instead of the video itself",
+        action="store_true",
+    )
+    args = parser.parse_args()
+    distribute_videos_and_images(args.distribute_frames)
