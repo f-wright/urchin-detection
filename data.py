@@ -11,7 +11,6 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Optional
 
-
 # change this to whatever you named your download folder with the input images and labels
 # NOTE: this must have "images" and "labels" subfolders. The images subfolder may also contain videos
 IMAGE_DOWNLOAD_DIR = "urchin_download"
@@ -26,6 +25,7 @@ URCHIN_IMAGE_SUBFOLDERS = ["google_0", "sean_nov_3/images", "google_negative_1/i
 BACKGROUND_IMAGE_SUBFOLDERS = ["background_lsui_0/images", "background_lsui_1/images"]
 
 VIDEO_SUBFOLDERS = ["sean_nov_3/videos"]
+FRAME_SUBFOLDERS = ["redistributed_0/frames"]
 
 
 def make_yolo_folders() -> None:
@@ -64,15 +64,18 @@ def get_urchin_image_folders(
 def get_urchin_video_folders(
     directory: str, labelers: list[str], video_subfolders: list[str]
 ) -> list[str]:
-    """Returns all folders with valid videos in them.
+    """Returns all folders with valid videos or video frames in them.
 
     Args:
-        directory (str): base directory containing all videos, relative path from repo base
+        directory (str): base directory containing all videos or frames, relative path
+            from repo base
         labelers (list[str]): list of all labelers
-        video_subfolders (list[str]): list of all valid labeler subfolders which contain videos directly
+        video_subfolders (list[str]): list of all valid labeler subfolders which
+            contain videos directly
 
     Returns:
-        list[str]: list of paths which exist and contain videos, relative paths from repo base
+        list[str]: list of paths which exist and contain videos, relative paths from
+            repo base
     """
     paths = []
     for labeler in labelers:
@@ -321,6 +324,32 @@ def get_all_video_filenames(folders: list[str]) -> set:
     return filenames
 
 
+def get_all_frame_folders(folders: list[str]) -> set:
+    """Get folders which contain labeled frames
+
+    Args:
+        folders (list[str]): List of folders which contain folders for specific videos
+
+    Returns:
+        set: set of folders which contain frames directly
+    """
+    frame_folders = set()
+
+    for folder in folders:
+        # https://stackoverflow.com/questions/973473/getting-a-list-of-all-subdirectories-in-the-current-directory
+        frame_folder_names = [x[0] for x in os.walk(folder)][1:]
+        frame_folders.update(frame_folder_names)
+
+    unlabeled_frame_folders = set()
+    for folder in frame_folders:
+        if not os.path.exists(get_frame_label_folder(folder)):
+            unlabeled_frame_folders.add(folder)
+
+    frame_folders = frame_folders - unlabeled_frame_folders
+
+    return frame_folders
+
+
 def standardize_labels(label_folders: list[str]) -> None:
     """Standardize all labels to be bounding boxes
 
@@ -446,6 +475,34 @@ def get_video_label_filename(video_frame_filename: str) -> str:
     return label_path
 
 
+def get_frame_label_filename(frame_filename: str) -> str:
+    """Given an input frame filename, find the corresponding label filename
+
+    Args:
+        frame_filename (str): filename for the frame to get the label for
+
+    Returns:
+        str: label filename corresponding to the input frame
+    """
+    # get path split by folders into a list
+    label_path = frame_filename.split(os.sep)
+
+    # make sure input is an image
+    assert ".jpg" in label_path[-1], "input is not an image"
+
+    # get corresponding label path for image, relies on particular file structure
+    label_path[-1] = label_path[-1].replace(".jpg", ".txt")
+    label_path[1] = "labels"
+    if label_path[-3] == "frames":
+        del label_path[-3]
+        label_path[-3] = label_path[-3] + "_frames"
+    label_path.insert(-1, "obj_train_data")
+
+    label_path = os.path.join(*label_path)
+
+    return label_path
+
+
 def get_video_label_folder(video_filename: str) -> str:
     """Get label folder corresponding to an input video filename
 
@@ -471,16 +528,49 @@ def get_video_label_folder(video_filename: str) -> str:
     return label_path
 
 
-def get_video_label_folders(video_filenames: list[str]) -> list[str]:
+def get_frame_label_folder(frame_folder: str) -> str:
+    """Get the folder for frame labels given the input for frame images
+
+    Args:
+        frame_folder (str): folder which contains frame images
+
+    Returns:
+        str: folder which contains frame labels
+    """
+    # get path split by folders into a list
+    label_path = frame_folder.split(os.sep)
+
+    label_path[1] = "labels"
+    if label_path[-2] == "frames":
+        del label_path[-2]
+        label_path[-2] = label_path[-2] + "_frames"
+
+    label_path = os.path.join(*label_path)
+
+    return label_path
+
+
+def get_video_label_folders(
+    video_filenames: list[str], is_frame: bool = False
+) -> list[str]:
     """Get label folders corresponding to a list of input video filenames
 
     Args:
         video_filename (list[str]): List of paths to videos
+        is_frame (bool, optional): Whether or not the input is video frame folders
+            instead of whole video filenames. Defaults to False.
 
     Returns:
         list[str]: List of paths to label folders corresponding to the input videos
     """
-    label_folders = [get_video_label_folder(filename) for filename in video_filenames]
+    if is_frame:
+        label_folders = [
+            get_frame_label_folder(filename) for filename in video_filenames
+        ]
+    else:
+        label_folders = [
+            get_video_label_folder(filename) for filename in video_filenames
+        ]
     return label_folders
 
 
@@ -655,6 +745,7 @@ def get_total_video_frames(
 def split_data(
     image_filenames: set,
     video_filenames: set,
+    frame_folders: set,
     train_prop: float,
     val_prop: float,
     use_video: bool = True,
@@ -666,6 +757,7 @@ def split_data(
     Args:
         image_filenames (set): set of all image filenames as strings
         video_filenames (set): set of all video filenames as strings
+        frame_folders (set): set of all frame folders as strings
         train_prop (float): proportion of total data we want to use for training
         val_prop (float): proportion of total data we want to use for validation
         use_video (bool, optional): Whether or not to use video data. Defaults to True.
@@ -717,14 +809,20 @@ def split_data(
         shutil.copy(image_path, target_image_folder)
         shutil.copy(label_path, target_label_folder)
 
+    # use videos and frames
     if use_video:
         urchin_videos = np.array(list(video_filenames))
+        urchin_video_frames = np.array(list(frame_folders))
         np.random.shuffle(urchin_videos)
+        np.random.shuffle(urchin_video_frames)
 
         total_video_count = urchin_videos.shape[0]
+        total_frame_video_count = urchin_video_frames.shape[0]
 
         train_video_count = int(train_prop * total_video_count)
         val_video_count = int(val_prop * total_video_count)
+        train_frame_video_count = int(train_prop * total_frame_video_count)
+        val_frame_video_count = int(val_prop * total_frame_video_count)
 
         # distribute videos
         for i, video_path in enumerate(urchin_videos):
@@ -769,7 +867,63 @@ def split_data(
 
             target_image_folders = [
                 f"data/images/{split}/{destination_image_filename}"
-                for destination_image_filename in destination_label_filenames
+                for destination_image_filename in destination_image_filenames
+            ]
+            target_label_folders = [
+                f"data/labels/{split}/{destination_label_filename}"
+                for destination_label_filename in destination_label_filenames
+            ]
+
+            # Copy files
+            for i in range(len(target_image_folders)):
+                shutil.copy(frames_list[i], target_image_folders[i])
+                shutil.copy(labels_list[i], target_label_folders[i])
+
+        # distribute video frames
+        for i, video_frames_path in enumerate(urchin_video_frames):
+            assert os.path.exists(
+                video_frames_path
+            ), f"Video frame path {video_frames_path} does not exist"
+
+            frames_list = list(get_filenames(video_frames_path))
+            labels_list = [get_frame_label_filename(frame) for frame in frames_list]
+            print(labels_list)
+
+            # Split into train, val, or test
+            if i < train_frame_video_count:
+                split = "train"
+            elif i < train_frame_video_count + val_frame_video_count:
+                split = "val"
+            else:
+                split = "test"
+
+            # make sure all of our frame paths exist
+            assert all(
+                [os.path.exists(frame) for frame in frames_list]
+            ), f"Frame path in {frames_list} does not exist"
+
+            # Destination paths
+            destination_filenames = [frame.split(os.sep) for frame in frames_list]
+
+            destination_image_filenames = [
+                destination_filename[2]
+                + "_"
+                + destination_filename[3]
+                + "_"
+                + destination_filename[4]
+                + "_"
+                + destination_filename[-1]
+                for destination_filename in destination_filenames
+            ]
+
+            destination_label_filenames = [
+                destination_image_filename.replace(".jpg", ".txt")
+                for destination_image_filename in destination_image_filenames
+            ]
+
+            target_image_folders = [
+                f"data/images/{split}/{destination_image_filename}"
+                for destination_image_filename in destination_image_filenames
             ]
             target_label_folders = [
                 f"data/labels/{split}/{destination_label_filename}"
@@ -799,12 +953,24 @@ def main(args):
     if args.use_video:
         video_folders = get_urchin_video_folders(image_dir, LABELERS, VIDEO_SUBFOLDERS)
         video_filenames = get_all_video_filenames(video_folders)
-        video_label_folders = get_video_label_folders(video_filenames)
+        video_label_folders = get_video_label_folders(video_filenames, is_frame=False)
 
         standardize_classes(video_label_folders)
         video_frame_total = get_total_video_frames(
             video_filenames, args.frame_num, args.use_total
         )
+
+        frame_folders = get_urchin_video_folders(image_dir, LABELERS, FRAME_SUBFOLDERS)
+        frame_video_folders = get_all_frame_folders(frame_folders)
+        frame_label_folders = get_video_label_folders(
+            frame_video_folders, is_frame=True
+        )
+
+        standardize_classes(frame_label_folders)
+        video_frame_total += 20 * len(
+            frame_label_folders
+        )  # TODO: get exact by counting in directory, sometimes have off by one errors in number of frames distributed
+
     else:
         video_filenames = set()
         video_frame_total = 0
@@ -829,6 +995,7 @@ def main(args):
     split_data(
         image_filenames,
         video_filenames,
+        frame_video_folders,
         train_prop=0.6,
         val_prop=0.2,
         use_video=args.use_video,
@@ -842,20 +1009,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v",
         "--use_video",
-        help="whether to include video data in the split",
+        help="whether to include video data (both full videos and frames) in the split",
         action="store_true",
     )
     parser.add_argument(
         "-t",
         "--use_total",
-        help="whether to use a total number of frames per video, or pull frames skipping some number",
+        help="whether to use a total number of frames per full video, or pull frames skipping some number",
         action="store_true",
     )
     parser.add_argument(
         "--frame_num",
         nargs="?",
         default=10,
-        help="total number of frames to pull from each video, or number of frames to skip between pulls from a video",
+        help="total number of frames to pull from each full video, or number of frames to skip between pulls from a video",
         type=int,
     )
     parser.add_argument(
