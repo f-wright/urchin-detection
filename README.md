@@ -1,6 +1,22 @@
 # urchin-detection
 Purple sea urchin detection for Apsis clinic project
 
+## YOLOv9
+
+### Setup steps
+1. Clone this repository
+2. Create and activate a Python environment using venv
+   `python3 -m venv venv`
+   `source venv/bin/activate`
+3. Download all images and labels from google drive. Put in a download folder with `images` and `labels` subfolders
+4. Clone the YOLOv9 repo using `git clone https://github.com/WongKinYiu/yolov9.git`
+
+### Steps for training the YOLOv8 model
+
+1. First, activate your virtual environment using the command `source venv/bin/activate`, replacing `venv` with the name of your virtual environment
+2. Run `data.py`. This will take your input images and labels and organize them into the proper folders for YOLO training and evaluation. If you've run `data.py` before, your previous data folder will be deleted and replaced with a the new one. Run `python3 data.py -h` to see information about what flags you can pass to run the model on different datasets. 
+3. To run the YOLOv9 model: `yolo detect train model=[ABSOLUTE PATH TO FILE 'yolov9c.pt] data = [ABSOLUTE PATH TO FILE 'urchins.yaml'] epochs = 50 batch = 2`. Note that batch = 3 may also work, but batch = 4 crashes the clinic computer (but may work on a more computationally efficient system).
+
 ## YOLOv8
 
 ### Setup steps
