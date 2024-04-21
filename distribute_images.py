@@ -9,7 +9,7 @@ from pathlib import Path
 LABELERS = ["Brittany", "Castor", "Eliza", "Francine", "James", "Ryan"]
 INPUT_DIR = "input_images"
 OUTPUT_DIR = "images_to_label"
-FILE_CATEGORY = "redistributed_0"
+FILE_CATEGORY = "robot"
 CURRENT_DIR = os.getcwd()
 VIDEO_EXTENSIONS = {".mov", ".MOV"}
 IMAGE_EXTENSIONS = {".JPG", ".jpg", ".png", ".avif", ".webp", ".gif", ".jpeg"}
